@@ -1,134 +1,160 @@
 # PromptGate
 
-Local **prompt contract tests** for LLM output.
+A small tool that checks whether an AI answer matches what you asked for.
 
-You store a prompt and a rule (`contains`, `exact`, or `regex`).
-You pass the model's output.
-PromptGate returns pass/fail, a `results.json`, and a JSONL run log.
+You write a question and a rule (for example: “the answer must mention Paris”).
+You paste the model’s answer.
+PromptGate says **pass** or **fail**.
 
-It does **not** call OpenAI, Ollama, or any model.
-It is not the PromptGate AI gateway at promptgate.dev.
+It does **not** talk to ChatGPT, Ollama, or any AI model.
+It only judges text you already have.
 
-**Stack:** Python 3.14 · FastAPI · pytest · Windows
+This repo is an early prototype by [Nishant Tyagi](https://github.com/nishanttyagi28).
+It is useful as a demo and a starting point for freelance work.
+It is **not** a finished product and will not be built into a large production SaaS unless real clients appear.
 
-## Why
+---
 
-Prompt text drifts. Agents claim work is done.
-This repo treats a prompt like a unit: frozen fixture in, assertion out, CI-friendly exit code.
+## The business problem (plain language)
 
-## Requirements
+Companies now put AI into apps, support bots, and internal tools.
 
-- Windows (PowerShell 5.1+)
-- Python 3.11+ (`C:\Python314\python.exe` on the build machine)
+Three things keep breaking:
+
+1. **The prompt changes** and nobody notices the answers got worse.
+2. **The model vendor changes** (or the model version) and old answers no longer match.
+3. **The coding agent says “done”** but nobody ran a real check.
+
+Software teams already have unit tests for code.
+They almost never have the same thing for prompts.
+
+That gap costs money: bad answers in front of customers, extra manual review, and arguments about whether “it works.”
+
+---
+
+## The idea / vision
+
+Treat a prompt like a contract.
+
+- Freeze a small set of example questions.
+- Freeze what a good answer must contain (a word, an exact sentence, or a pattern).
+- After every prompt edit or model change, run the same examples.
+- If something fails, CI can fail. No guessing.
+
+Long-term (only if someone pays for it):
+
+- A folder of prompt cases per client
+- A button or command that scores a batch of model outputs
+- A short report: passed / failed / cost later if a model is wired in
+- Optional private API key so only the client’s app can call it
+
+Not the vision: another ChatGPT clone, another multi-tenant cloud, another “AI gateway” like promptgate.dev.
+
+---
+
+## What this software does today
+
+| You give | You get |
+|----------|---------|
+| A case (question + rule) and a model answer | `{ "passed": true/false }` |
+| A batch of answers keyed by case id | Counts + per-case results |
+| A CLI run | `results.json`, a log line in `runs/eval.jsonl`, exit code 1 if anything failed |
+
+Rules a case can use:
+
+- **contains** — answer must include this text (default)
+- **exact** — answer must match exactly
+- **regex** — answer must match a pattern
+
+Optional: set environment variable `PROMPTGATE_KEY`. Then write endpoints require header `x-api-key`.
+
+---
+
+## What is already built
+
+Working on Windows with Python 3.14.
+
+- HTTP API (FastAPI)
+  - `GET /health` — is the server up
+  - `GET /cases` — sample questions
+  - `POST /eval` — score one answer
+  - `POST /eval/batch` — score many
+  - `GET /runs` — recent log lines
+- Command line: `python -m app.cli ...`
+- Sample cases under `cases/`
+- Automated tests: **16 passed** last run (only FastAPI / Python 3.14 warnings)
+
+This is enough to show a client: “here is how we freeze a prompt and fail the build when the answer drifts.”
+
+---
+
+## What is not built (do not sell these yet)
+
+- No live call to any LLM
+- No website / dashboard
+- No login, teams, or billing
+- No Docker / cloud deploy pack
+- No multi-tenant SaaS
+- No “enterprise ready” scale
+- No comparison against other products named PromptGate
+
+If this never becomes freelance work, it stays a portfolio prototype. That is an acceptable outcome.
+
+---
+
+## Who this is for
+
+- A founder who wants prompt checks in CI before they hire a big vendor
+- A freelancer who delivers LLM features and needs proof the prompts did not regress
+- A student / junior engineer showing they can ship a small, honest tool
+
+Not for: replacing LangSmith, PromptLayer, or a full AI gateway.
+
+---
+
+## How to run (Windows)
+
+Need Python 3.11+ (`C:\Python314\python.exe` on the original machine).
 
 ```powershell
 cd E:\promptgate
 C:\Python314\python.exe -m pip install fastapi uvicorn pydantic pytest httpx
-```
+Tests:
+PowerShellC:\Python314\python.exe -m pytest -q --tb=short --basetemp=E:\promptgate\.pytest-tmp
+Score a batch from files:
+PowerShellC:\Python314\python.exe -m app.cli --cases cases\sample.json --outputs cases\sample-outputs.json --out results.json
+Start the API:
+PowerShellC:\Python314\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000
+Open: http://127.0.0.1:8000/health
 
-### Quick start
-
-```powershell
-C:\Python314\python.exe -m pytest -q --tb=short --basetemp=E:\promptgate\.pytest-tmp
-C:\Python314\python.exe -m app.cli --cases cases\sample.json --outputs cases\sample-outputs.json --out results.json
-C:\Python314\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000
-```
-
-### Health
-
-```
-GET http://127.0.0.1:8000/health
-```
-
-## HTTP
-
-| Method | Path          | Purpose                          |
-|--------|---------------|----------------------------------|
-| GET    | /health       | Liveness                         |
-| GET    | /cases        | Loaded sample cases              |
-| POST   | /eval         | One case (prompt, expect_contains, output) |
-| POST   | /eval/batch   | `{ "outputs": { "id": "model text" } }` |
-| GET    | /runs         | Recent runs/eval.jsonl lines     |
-
-> If `PROMPTGATE_KEY` is set, `POST /eval` and `POST /eval/batch` require header `x-api-key`.
-
-## JSON
-
-**Request:**
-
-```json
-{
+Example
+Request to POST /eval:
+JSON{
   "prompt": "What is the capital of France?",
   "expect_contains": "Paris",
   "output": "The capital is Paris."
 }
-```
+Response:
+JSON{ "passed": true }
+If the output had been “The capital is Berlin.” → passed: false.
 
-**Response:**
+Project layout
+textapp/main.py     API
+app/eval.py     pass/fail rules
+app/store.py    load cases from JSON
+app/cli.py      batch command
+app/log.py      JSONL history
+cases/          example questions and answers
+tests/          automated tests
 
-```json
-{ "passed": true }
-```
+Freelance / next step
+Possible paid slice if a client appears:
 
-## CLI
+Wire their real model outputs into POST /eval/batch
+Keep 20–50 golden cases in cases/
+Fail their CI when failed_count > 0
 
-```powershell
-C:\Python314\python.exe -m app.cli --cases cases\sample.json --outputs cases\sample-outputs.json --out results.json
-```
+Until that request exists, do not grow this into a platform.
 
-Writes `results.json`, appends `runs/eval.jsonl`, exits 1 when `failed_count > 0`.
-
-## Case format
-
-```json
-[
-  {
-    "id": "cap-fr",
-    "prompt": "Capital of France?",
-    "expect_contains": "Paris",
-    "match": "contains"
-  }
-]
-```
-
-`match`: `contains` (default) | `exact` | `regex`
-
-## Layout
-
-```text
-app/main.py      FastAPI
-app/eval.py      scoring
-app/store.py     load cases
-app/cli.py       batch runner
-app/log.py       JSONL log
-cases/           fixtures
-tests/           pytest
-```
-
-## Notes
-
-- Use `--basetemp=E:\promptgate\.pytest-tmp` on Windows if user temp raises WinError 5.
-- This project is a prompt assertion gate, not a hosted LLM platform.
-# PromptGate
-Windows-first prompt contract gate. Not an LLM. Cases have prompt + expect_contains|exact|regex. You pass model output; you get pass/fail, results.json, runs/eval.jsonl.
-
-## Run
-cd E:\promptgate
-C:\Python314\python.exe -m pytest -q --tb=short --basetemp=E:\promptgate\.pytest-tmp
-C:\Python314\python.exe -m app.cli --cases cases\sample.json --outputs cases\sample-outputs.json --out results.json
-C:\Python314\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000
-If PROMPTGATE_KEY is set, POST /eval and POST /eval/batch need header x-api-key.
-
-## What went wrong building this
-1. VS Code opened on E:\ drive root. pip install -e . hit file:///E:/ with no pyproject.toml.
-2. Cline: command completion could not be observed; agent still claimed success.
-3. Fake counts: 52 tests passed; later 6 passed in 1.48s while terminal still showed 4 passed in 1.48s.
-4. Bash on PowerShell 5.1: ls -la, &&, echo >> file. Cline loop-killed after 5 identical run_commands.
-5. New-Item 0-byte store.py / test_batch.py marked SUCCESS; pytest still collected 4 tests.
-6. venv pip on 3.14: ImportError urllib3 from pip._vendor. Agent retried pip install -U pip until abort.
-7. Cline profile PowerShell 7 spawned C:"Program Files"\PowerShell\7\pwsh.exe ENOENT. Machine is PS 5.1.
-8. Aggressive terminal reuse + 4s timeout kept a stale 4 passed line.
-9. WinError 5 on C:\Users\Admin\AppData\Local\Temp\pytest-of-Admin. Fix --basetemp=E:\promptgate\.pytest-tmp.
-10. Auth tests expected 401; app returned 200 unless PROMPTGATE_KEY set before TestClient.
-11. Agent said SATISFIED on 2 failed, 11 passed, 3 errors.
-12. cmd1 && pytest | Out-File on PS 5.1 wrote an empty .pytest-out.txt.
+License / status
+Personal prototype. No company, no SLA, no support promise.
