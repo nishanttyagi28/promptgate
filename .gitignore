@@ -1,5 +1,6 @@
 .venv/
 .pytest-tmp/
+.promptgate.pytest-tmp/
 .pytest-out.txt
 .collect.txt
 .agent-out.txt
