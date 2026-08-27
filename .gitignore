@@ -1,0 +1,10 @@
+.venv/
+.pytest-tmp/
+.pytest-out.txt
+.collect.txt
+.agent-out.txt
+__pycache__/
+*.pyc
+.pytest_cache/
+results.json
+runs/eval.jsonl

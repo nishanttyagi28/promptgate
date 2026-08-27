@@ -1,0 +1,4 @@
+[
+  {"id":"cap-fr","prompt":"Capital of France?","expect_contains":"Paris"},
+  {"id":"cap-de","prompt":"Capital of Germany?","expect_contains":"Berlin"}
+]
