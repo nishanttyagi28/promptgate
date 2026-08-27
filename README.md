@@ -1,4 +1,115 @@
 # PromptGate
+
+Local **prompt contract tests** for LLM output.
+
+You store a prompt and a rule (`contains`, `exact`, or `regex`).
+You pass the model's output.
+PromptGate returns pass/fail, a `results.json`, and a JSONL run log.
+
+It does **not** call OpenAI, Ollama, or any model.
+It is not the PromptGate AI gateway at promptgate.dev.
+
+**Stack:** Python 3.14 · FastAPI · pytest · Windows
+
+## Why
+
+Prompt text drifts. Agents claim work is done.
+This repo treats a prompt like a unit: frozen fixture in, assertion out, CI-friendly exit code.
+
+## Requirements
+
+- Windows (PowerShell 5.1+)
+- Python 3.11+ (`C:\Python314\python.exe` on the build machine)
+
+```powershell
+cd E:\promptgate
+C:\Python314\python.exe -m pip install fastapi uvicorn pydantic pytest httpx
+```
+
+### Quick start
+
+```powershell
+C:\Python314\python.exe -m pytest -q --tb=short --basetemp=E:\promptgate\.pytest-tmp
+C:\Python314\python.exe -m app.cli --cases cases\sample.json --outputs cases\sample-outputs.json --out results.json
+C:\Python314\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000
+```
+
+### Health
+
+```
+GET http://127.0.0.1:8000/health
+```
+
+## HTTP
+
+| Method | Path          | Purpose                          |
+|--------|---------------|----------------------------------|
+| GET    | /health       | Liveness                         |
+| GET    | /cases        | Loaded sample cases              |
+| POST   | /eval         | One case (prompt, expect_contains, output) |
+| POST   | /eval/batch   | `{ "outputs": { "id": "model text" } }` |
+| GET    | /runs         | Recent runs/eval.jsonl lines     |
+
+> If `PROMPTGATE_KEY` is set, `POST /eval` and `POST /eval/batch` require header `x-api-key`.
+
+## JSON
+
+**Request:**
+
+```json
+{
+  "prompt": "What is the capital of France?",
+  "expect_contains": "Paris",
+  "output": "The capital is Paris."
+}
+```
+
+**Response:**
+
+```json
+{ "passed": true }
+```
+
+## CLI
+
+```powershell
+C:\Python314\python.exe -m app.cli --cases cases\sample.json --outputs cases\sample-outputs.json --out results.json
+```
+
+Writes `results.json`, appends `runs/eval.jsonl`, exits 1 when `failed_count > 0`.
+
+## Case format
+
+```json
+[
+  {
+    "id": "cap-fr",
+    "prompt": "Capital of France?",
+    "expect_contains": "Paris",
+    "match": "contains"
+  }
+]
+```
+
+`match`: `contains` (default) | `exact` | `regex`
+
+## Layout
+
+```text
+app/main.py      FastAPI
+app/eval.py      scoring
+app/store.py     load cases
+app/cli.py       batch runner
+app/log.py       JSONL log
+cases/           fixtures
+tests/           pytest
+```
+
+## Notes
+
+- Use `--basetemp=E:\promptgate\.pytest-tmp` on Windows if user temp raises WinError 5.
+- This project is a prompt assertion gate, not a hosted LLM platform.
+# PromptGate
 Windows-first prompt contract gate. Not an LLM. Cases have prompt + expect_contains|exact|regex. You pass model output; you get pass/fail, results.json, runs/eval.jsonl.
 
 ## Run
