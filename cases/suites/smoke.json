@@ -1,0 +1,18 @@
+[
+    {
+        "id": "smoke_1",
+        "prompt": "What is the capital of France?",
+        "expect": "Paris",
+        "match": "exact",
+        "suite": "smoke",
+        "tags_json": "[\"basic\", \"geo\"]"
+    },
+    {
+        "id": "smoke_2",
+        "prompt": "What is 2 + 2?",
+        "expect": "4",
+        "match": "exact",
+        "suite": "smoke",
+        "tags_json": "[\"math\"]"
+    }
+]

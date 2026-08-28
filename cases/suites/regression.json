@@ -1,0 +1,26 @@
+[
+    {
+        "id": "regression_1",
+        "prompt": "What is the largest planet in our solar system?",
+        "expect": "Jupiter",
+        "match": "exact",
+        "suite": "regression",
+        "tags_json": "[\"science\", \"space\"]"
+    },
+    {
+        "id": "regression_2",
+        "prompt": "What is the square root of 144?",
+        "expect": "12",
+        "match": "exact",
+        "suite": "regression",
+        "tags_json": "[\"math\"]"
+    },
+    {
+        "id": "regression_3",
+        "prompt": "Who wrote 'To Kill a Mockingbird'?",
+        "expect": "Harper Lee",
+        "match": "exact",
+        "suite": "regression",
+        "tags_json": "[\"literature\"]"
+    }
+]

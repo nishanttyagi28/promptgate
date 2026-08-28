@@ -8,6 +8,7 @@ from .log import append_run
 
 def main():
     parser = argparse.ArgumentParser(description="PromptGate CLI")
+    parser.add_argument("--html", action="store_true", help="Generate HTML report")
     parser.add_argument("--cases", required=True, help="Path to cases JSON file")
     parser.add_argument("--outputs", required=True, help="Path to outputs JSON file")
     parser.add_argument("--out", required=True, help="Path to results JSON file")
