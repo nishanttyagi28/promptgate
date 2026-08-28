@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PromptGate</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        .health {
+            border: 1px solid #ccc;
+            padding: 10px;
+            margin-bottom: 20px;
+        }
+        .cases {
+            border: 1px solid #ccc;
+            padding: 10px;
+            margin-bottom: 20px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+        }
+        input, textarea {
+            width: 100%;
+            padding: 8px;
+            box-sizing: border-box;
+        }
+        button {
+            padding: 10px 15px;
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 10px;
+            border: 1px solid #ccc;
+        }
+    </style>
+</head>
+<body>
+    <h1>PromptGate</h1>
+    <div class="health">
+        <h2>Health Check</h2>
+        <div id="health-result"></div>
+    </div>
+    <div class="cases">
+        <h2>Cases</h2>
+        <div id="cases-list"></div>
+    </div>
+    <div class="form">
+        <h2>Evaluate</h2>
+        <form id="eval-form">
+            <div class="form-group">
+                <label for="prompt">Prompt:</label>
+                <textarea id="prompt" name="prompt" rows="4"></textarea>
+            </div>
+            <div class="form-group">
+                <label for="expect_contains">Expect Contains:</label>
+                <input type="text" id="expect_contains" name="expect_contains">
+            </div>
+            <div class="form-group">
+                <label for="output">Output:</label>
+                <textarea id="output" name="output" rows="4"></textarea>
+            </div>
+            <button type="submit">Evaluate</button>
+        </form>
+        <div class="result" id="result"></div>
+    </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            fetch('/health')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('health-result').textContent = JSON.stringify(data, null, 2);
+                });
+            fetch('/cases')
+                .then(response => response.json())
+                .then(data => {
+                    const casesList = document.getElementById('cases-list');
+                    data.forEach(caseItem => {
+                        const caseDiv = document.createElement('div');
+                        caseDiv.textContent = JSON.stringify(caseItem, null, 2);
+                        casesList.appendChild(caseDiv);
+                    });
+                });
+            document.getElementById('eval-form').addEventListener('submit', function(event) {
+                event.preventDefault();
+                const formData = {
+                    prompt: document.getElementById('prompt').value,
+                    expect_contains: document.getElementById('expect_contains').value,
+                    output: document.getElementById('output').value
+                };
+                fetch('/eval', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(formData)
+                })
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('result').textContent = `Passed: ${data.passed}`;
+                });
+            });
+        });
+    </script>
+</body>
+</html>

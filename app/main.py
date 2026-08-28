@@ -202,3 +202,12 @@ async def eval_run(body: dict, request: Request):
         "passed_count": passed_count,
         "failed_count": failed_count
     }
+# Serve static files
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+@app.get("/")
+async def read_index():
+    return FileResponse("static/index.html")
