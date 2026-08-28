@@ -20,4 +20,5 @@ jobs:
           pip install fastapi uvicorn pydantic pytest httpx
       - name: Run tests
         run: |
-          pytest -q --tb=short
+          env PYTHONPATH: ${{ github.workspace }}
+          run: python -m pytest -q --tb=short
