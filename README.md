@@ -1,144 +1,116 @@
 # PromptGate
 
-A small tool that checks whether an AI answer matches what you asked for.
+A small FastAPI service and CLI that checks saved LLM answers against simple rules, so a prompt or model change that breaks an expected answer can fail a CI job.
 
-You write a question and a rule (for example: "the answer must mention Paris").
-You paste the model's answer.
-PromptGate says **pass** or **fail**.
+[![Test Suite](https://github.com/nishanttyagi28/promptgate/actions/workflows/test.yml/badge.svg)](https://github.com/nishanttyagi28/promptgate/actions/workflows/test.yml)
 
-It does **not** talk to ChatGPT, Ollama, or any AI model. It only judges text you already have.
+You write each test case as a prompt plus the text a good answer must contain. Then you give PromptGate the answers your model produced. It reports pass or fail per case, and the CLI exits with status 1 if anything failed. PromptGate doesn't call a model itself. It only judges text you already have.
 
-This repo is an early prototype by [Nishant Tyagi](https://github.com/nishanttyagi28). It is a demo and a possible freelance starting point. It is **not** a finished product and will not become a large SaaS unless real clients appear.
+This is an early personal prototype.
 
-## The business problem
+## Install
 
-Companies put AI into apps, support bots, and internal tools. Three things keep breaking:
+Python 3.10 or newer.
 
-1. The prompt changes and nobody notices the answers got worse.
-2. The model or vendor changes and old answers no longer match.
-3. A coding agent says "done" but nobody ran a real check.
+```bash
+git clone https://github.com/nishanttyagi28/promptgate.git
+cd promptgate
+python -m venv .venv
+source .venv/bin/activate        # Windows: .venv\Scripts\activate
+pip install fastapi uvicorn pydantic pytest httpx
+```
 
-Teams already unit-test code. They almost never test prompts the same way. That gap means bad customer-facing answers, extra manual review, and arguments about whether the feature works.
+Run everything from the repository root. (`pip install -e .` doesn't work yet; see Limitations.)
 
-## Vision
+## Quick start
 
-Treat a prompt like a contract.
+`cases/sample.json` defines two cases, and `cases/sample-outputs.json` holds the model answers, keyed by case ID:
 
-- Freeze a small set of example questions.
-- Freeze what a good answer must contain (a phrase, an exact sentence, or a pattern).
-- After every prompt or model change, run the same examples.
-- If a case fails, the command can exit non-zero so CI can fail.
+```json
+[
+  {"id": "cap-fr", "prompt": "Capital of France?", "expect_contains": "Paris"},
+  {"id": "cap-de", "prompt": "Capital of Germany?", "expect_contains": "Berlin"}
+]
+```
 
-Only if someone pays: per-client case folders, a batch report, optional API key, later a model hook for cost. Not in scope: a ChatGPT clone, multi-tenant cloud, or an AI gateway like promptgate.dev.
-
-## What it does today
-
-| You give | You get |
-| --- | --- |
-| One case (question + rule) and a model answer | {"passed": true} or false |
-| A batch of answers keyed by case id | Per-case results and counts |
-| A CLI run | results.json, a line in runs/eval.jsonl, exit code 1 if anything failed |
-
-Match rules: **contains** (default), **exact**, **regex**.
-
-If environment variable PROMPTGATE_KEY is set, POST /eval and POST /eval/batch require header x-api-key.
-
-## Already built
-
-Windows + Python 3.14.
-
-- GET /health — server up
-- GET /cases — sample questions
-- POST /eval — score one answer
-- POST /eval/batch — score many
-- GET /runs — recent log lines
-- CLI: python -m app.cli
-- Fixtures in cases/
-- Tests: 16 passed on last run (FastAPI / Python 3.14 warnings only)
-
-Enough to show a client how to freeze a prompt and fail a build when the answer drifts.
-
-## Not built — do not sell these
-
-- No live LLM call
-- No dashboard or login
-- No billing, teams, or Docker pack
-- No multi-tenant SaaS
-- No enterprise scale
-
-If freelance work never appears, this stays a portfolio prototype.
-
-## Who it is for
-
-Founders who want prompt checks before hiring a big vendor. Freelancers who ship LLM features and need regression proof. Engineers showing a small honest tool.
-
-Not a replacement for LangSmith, PromptLayer, or a full AI gateway.
-
-## How to run (Windows)
-
-Python 3.11+ (C:\Python314\python.exe on the original machine).
-
-Install:
-
-~~~powershell
-cd E:\promptgate
-C:\Python314\python.exe -m pip install fastapi uvicorn pydantic pytest httpx
-~~~
-
-Tests:
-
-~~~powershell
-C:\Python314\python.exe -m pytest -q --tb=short --basetemp=E:\promptgate\.pytest-tmp
-~~~
-
-Score a batch:
-
-~~~powershell
-C:\Python314\python.exe -m app.cli --cases cases\sample.json --outputs cases\sample-outputs.json --out results.json
-~~~
-
-Start the API:
-
-~~~powershell
-C:\Python314\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000
-~~~
-
-Then open http://127.0.0.1:8000/health
-
-## Example
-
-POST /eval
-
-~~~json
+```json
 {
+  "cap-fr": "The capital of France is Paris.",
+  "cap-de": "The capital of Germany is London."
+}
+```
+
+```bash
+python -m app.cli --cases cases/sample.json --outputs cases/sample-outputs.json --out results.json
+```
+
+```text
+Passed: 1, Failed: 1
+```
+
+The exit code is 1 because `cap-de` failed. Per-case results are written to `results.json`, and a line is appended to `runs/eval.jsonl`.
+
+## API
+
+```bash
+python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
+```
+
+```bash
+curl -s http://127.0.0.1:8000/eval -H 'Content-Type: application/json' -d '{
   "prompt": "What is the capital of France?",
   "expect_contains": "Paris",
   "output": "The capital is Paris."
-}
-~~~
+}'
+# {"passed":true}
+```
 
-~~~json
-{ "passed": true }
-~~~
+| Method | Path | What it does |
+| --- | --- | --- |
+| GET | `/` | Minimal HTML page to try `/eval` in a browser |
+| GET | `/health` | Liveness check |
+| GET | `/cases` | List the stored cases (`cases/sample.json` unless a SQLite store exists) |
+| POST | `/eval` | Score one answer |
+| POST | `/eval/batch` | Score answers (`{"outputs": {id: text}}`) against the stored cases |
+| POST | `/eval/compare` | Compare baseline and candidate answers: newly failed, newly passed, unchanged |
+| GET | `/runs` | Last 20 lines of `runs/eval.jsonl` |
 
-If the output is "The capital is Berlin." the result is passed: false.
+If the environment variable `PROMPTGATE_KEY` is set, `POST /eval` and `POST /eval/batch` require a matching `x-api-key` header. Other endpoints are not protected.
+
+## Matching rules
+
+`app/eval.py` supports three modes: `contains` (the default), `exact` (after trimming whitespace) and `regex`. The CLI and `/eval` always use `contains`. `/eval/compare` reads a `match` field on each case.
 
 ## Layout
 
-~~~text
-app/main.py      API
-app/eval.py      pass/fail rules
-app/store.py     load cases from JSON
-app/cli.py       batch command
-app/log.py       JSONL history
-cases/           example questions and answers
-tests/           automated tests
-~~~
+```text
+app/main.py     FastAPI app
+app/eval.py     matching rules and baseline/candidate comparison
+app/cli.py      batch command
+app/db.py       SQLite case store (path from PROMPTGATE_DB)
+app/log.py      JSONL run history
+cases/          sample cases, outputs and suites
+static/         the HTML page served at /
+tests/          pytest suite
+```
 
-## Freelance next step
+## Limitations
 
-If a client appears: wire their model outputs into POST /eval/batch, keep 20-50 golden cases in cases/, fail CI when failed_count > 0. Until that request exists, do not grow this into a platform.
+- No model integration. You supply the outputs. There is a mock provider class, but no real one.
+- `POST /cases` returns a 500 on a fresh checkout because the SQLite store isn't initialised first.
+- `POST /eval/suite` and `POST /eval/run` currently return a 500 with the bundled suites in `cases/suites/`, because those files use `expect` while the case model expects `expect_contains`.
+- The CLI's `--html` flag is accepted but doesn't generate a report yet.
+- `pyproject.toml` has no package configuration, so `pip install .` fails. Install the dependencies directly as shown above.
+- No login, multi-user support or hosting setup.
 
-## Status
+## Development
 
-Personal prototype. No company, no SLA, no support promise.
+```bash
+python -m pytest -q
+```
+
+`pytest.ini` sets `--basetemp` to a Windows path from the original machine. On other systems pytest creates a directory with that literal name. Pass `-o addopts=""` to skip it.
+
+## License
+
+No license file has been added to this repository yet.
