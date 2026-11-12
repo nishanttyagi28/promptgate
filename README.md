@@ -2,6 +2,9 @@
 
 A small FastAPI service and CLI that checks saved LLM answers against simple rules, so a prompt or model change that breaks an expected answer can fail a CI job.
 
+
+Live demo: https://promptgate-ruddy.vercel.app
+
 [![Test Suite](https://github.com/nishanttyagi28/promptgate/actions/workflows/test.yml/badge.svg)](https://github.com/nishanttyagi28/promptgate/actions/workflows/test.yml)
 
 You write each test case as a prompt plus the text a good answer must contain. Then you give PromptGate the answers your model produced. It reports pass or fail per case, and the CLI exits with status 1 if anything failed. PromptGate doesn't call a model itself. It only judges text you already have.
