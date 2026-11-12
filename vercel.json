@@ -1,0 +1,8 @@
+{
+  "rewrites": [{ "source": "/(.*)", "destination": "/app/main.py" }],
+  "functions": {
+    "app/main.py": {
+      "includeFiles": "{app/**,cases/**,static/**}"
+    }
+  }
+}

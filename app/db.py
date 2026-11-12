@@ -33,6 +33,8 @@ def get_db_path() -> Path:
     db_path = os.environ.get("PROMPTGATE_DB")
     if db_path:
         return Path(db_path)
+    if os.environ.get("VERCEL"):
+        return Path("/tmp/promptgate.db")
     return Path(__file__).parent.parent / "data" / "promptgate.db"
 
 
